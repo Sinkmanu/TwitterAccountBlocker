@@ -59,7 +59,7 @@ def login(authorization_bearer, guest_token, username, password, email):
     print("[*] flow_token: %s" % flow_token)
 
     # Flow 3
-    data = {"flow_token": flow_token ,"subtask_inputs":[{"subtask_id":"LoginEnterUserIdentifierSSOSubtask","settings_list":{"setting_responses":[{"key":"user_identifier","response_data":{"text_data":{"result":username}}}],"link":"next_link"}}]}
+    data = {"flow_token": flow_token ,"subtask_inputs":[{"subtask_id":"LoginEnterUserIdentifierSSO","settings_list":{"setting_responses":[{"key":"user_identifier","response_data":{"text_data":{"result":username}}}],"link":"next_link"}}]}
     user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer  }
     r = requests.post(url_flow_2, verify=False, headers=user_agent, data=json.dumps(data))
     flow_token = json.loads(r.text)['flow_token']
