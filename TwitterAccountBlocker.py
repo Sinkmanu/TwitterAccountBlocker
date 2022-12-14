@@ -47,20 +47,20 @@ def login(authorization_bearer, guest_token, username, password, email):
     data = {'' : ''}
     user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer  }
     r = requests.post(url_flow_1, verify=False, headers=user_agent, data=json.dumps(data))
-    print(r.text)
     flow_token = json.loads(r.text)['flow_token']
+    cookie = ';'.join(['%s=%s' % (name, value) for (name, value) in r.cookies.get_dict(domain=".twitter.com").items()])
     print("[*] flow_token: %s" % flow_token)
 
     # Flow 2
     data = {'flow_token' : flow_token, "subtask_inputs" : []}
-    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer  }
+    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer, 'Cookie' : cookie  }
     r = requests.post(url_flow_2, verify=False, headers=user_agent, data=json.dumps(data))
     flow_token = json.loads(r.text)['flow_token']
     print("[*] flow_token: %s" % flow_token)
 
     # Flow 3
     data = {"flow_token": flow_token ,"subtask_inputs":[{"subtask_id":"LoginEnterUserIdentifierSSO","settings_list":{"setting_responses":[{"key":"user_identifier","response_data":{"text_data":{"result":username}}}],"link":"next_link"}}]}
-    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer  }
+    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer, 'Cookie' : cookie   }
     r = requests.post(url_flow_2, verify=False, headers=user_agent, data=json.dumps(data))
     flow_token = json.loads(r.text)['flow_token']
     print("[*] flow_token: %s" % flow_token)
@@ -68,14 +68,14 @@ def login(authorization_bearer, guest_token, username, password, email):
     if (json.loads(r.text)['subtasks'][0]['subtask_id'] == "LoginEnterAlternateIdentifierSubtask"):
         # Sometimes login alternate because unusual LoginEnterUserIdentifierSSOSubtask
         data = {"flow_token": flow_token, "subtask_inputs":[{"subtask_id":"LoginEnterAlternateIdentifierSubtask","enter_text":{"text": email,"link":"next_link"}}]}
-        user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer  }
+        user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer, 'Cookie' : cookie   }
         r = requests.post(url_flow_2, verify=False, headers=user_agent, data=json.dumps(data))
         flow_token = json.loads(r.text)['flow_token']
         print("[*] flow_token: %s" % flow_token)
 
     # Flow 4
     data = {"flow_token": flow_token ,"subtask_inputs":[{"subtask_id":"LoginEnterPassword","enter_password":{"password":password,"link":"next_link"}}]}
-    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer  }
+    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer, 'Cookie' : cookie   }
     r = requests.post(url_flow_2, verify=False, headers=user_agent, data=json.dumps(data))
     flow_token = json.loads(r.text)['flow_token']
     user_id = json.loads(r.text)['subtasks'][0]['check_logged_in_account']['user_id']
@@ -84,7 +84,7 @@ def login(authorization_bearer, guest_token, username, password, email):
 
     # Flow 5 (and get auth_token)
     data = {"flow_token":flow_token,"subtask_inputs":[{"subtask_id":"AccountDuplicationCheck","check_logged_in_account":{"link":"AccountDuplicationCheck_false"}}]}
-    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer  }
+    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer, 'Cookie' : cookie   }
     r = requests.post(url_flow_2, verify=False, headers=user_agent, data=json.dumps(data))
     flow_token = json.loads(r.text)['flow_token']
     auth_token = r.cookies['auth_token']
@@ -106,7 +106,8 @@ def getCSRFToken(guest_token, auth_token, authorization_bearer):
 def getRetweets(tweet_id, csrf_token, auth_token, authorization_bearer):
     # Get RT by id
     payload = '{"tweetId":"%s","count":20,"includePromotedContent":true,"withSuperFollowsUserFields":true,"withDownvotePerspective":false,"withReactionsMetadata":false,"withReactionsPerspective":false,"withSuperFollowsTweetFields":true,"__fs_dont_mention_me_view_api_enabled":false,"__fs_interactive_text":false,"__fs_responsive_web_uc_gql_enabled":false}' % tweet_id
-    url_rt = "https://twitter.com/i/api/graphql/%s/Retweeters?variables=%s" % (rt_path, urllib.parse.quote_plus(payload))
+    features = '{"responsive_web_twitter_blue_verified_badge_is_enabled":true,"verified_phone_label_enabled":false,"responsive_web_graphql_timeline_navigation_enabled":true,"view_counts_public_visibility_enabled":false,"view_counts_everywhere_api_enabled":false,"tweetypie_unmention_optimization_enabled":true,"responsive_web_uc_gql_enabled":true,"vibe_api_enabled":true,"responsive_web_edit_tweet_api_enabled":true,"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,"standardized_nudges_misinfo":true,"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":false,"interactive_text_enabled":true,"responsive_web_text_conversations_enabled":false,"responsive_web_enhance_cards_enabled":true}'
+    url_rt = "https://twitter.com/i/api/graphql/%s/Retweeters?variables=%s&features=%s" % (rt_path, urllib.parse.quote_plus(payload), urllib.parse.quote_plus(features))
     user_list = []
     cookie = "ct0=%s; auth_token=%s" % (csrf_token, auth_token)
     user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'x-guest-token' : guest_token , 'X-Csrf-Token' : csrf_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer, 'Cookie' : cookie  }
@@ -125,7 +126,8 @@ def getRetweets(tweet_id, csrf_token, auth_token, authorization_bearer):
     while (next != last):
         last = next
         payload = '{"tweetId":"%s","count":20, "cursor":"%s","includePromotedContent":true,"withSuperFollowsUserFields":true,"withDownvotePerspective":false,"withReactionsMetadata":false,"withReactionsPerspective":false,"withSuperFollowsTweetFields":true,"__fs_dont_mention_me_view_api_enabled":false,"__fs_interactive_text":false,"__fs_responsive_web_uc_gql_enabled":false}' % (tweet_id, next)
-        url_rt = "https://twitter.com/i/api/graphql/%s/Retweeters?variables=%s" % (rt_path, urllib.parse.quote_plus(payload))
+        features = '{"responsive_web_twitter_blue_verified_badge_is_enabled":true,"verified_phone_label_enabled":false,"responsive_web_graphql_timeline_navigation_enabled":true,"view_counts_public_visibility_enabled":false,"view_counts_everywhere_api_enabled":false,"tweetypie_unmention_optimization_enabled":true,"responsive_web_uc_gql_enabled":true,"vibe_api_enabled":true,"responsive_web_edit_tweet_api_enabled":true,"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,"standardized_nudges_misinfo":true,"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":false,"interactive_text_enabled":true,"responsive_web_text_conversations_enabled":false,"responsive_web_enhance_cards_enabled":true}'
+        url_rt = "https://twitter.com/i/api/graphql/%s/Retweeters?variables=%s&features=%s" % (rt_path, urllib.parse.quote_plus(payload), urllib.parse.quote_plus(features))
         cookie = "ct0=%s; auth_token=%s" % (csrf_token, auth_token)
         user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'x-guest-token' : guest_token , 'X-Csrf-Token' : csrf_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer, 'Cookie' : cookie  }
         r = requests.get(url_rt, verify=False, headers=user_agent)
