@@ -48,4 +48,4 @@ optional arguments:
 
 This tool is the result of a couple of hours researching how the login works and how to block users. It can be significantly improved, e.g. Creating the functionality to import a list of users in order to block them (like the old functionality which is currently not available in Twitter https://help.twitter.com/en/using-twitter/advanced-twitter-block-options) 
 
-How this tool have been developed can be found in https://unam.re/b/31/
+An explanation about how this tool have been developed can be found at https://unam.re/blog/developing-your-own-twitter-api
