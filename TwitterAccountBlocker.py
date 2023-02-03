@@ -59,7 +59,6 @@ def login(authorization_bearer, guest_token, username, password, email):
     data = {'' : ''}
     user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer  }
     r = requests.post(url_flow_1, verify=False, headers=user_agent, data=json.dumps(data))
-    print(r.text)
     flow_token = json.loads(r.text)['flow_token']
     cookie = ';'.join(['%s=%s' % (name, value) for (name, value) in r.cookies.get_dict(domain=".twitter.com").items()])
     print("[*] flow_token: %s" % flow_token)
@@ -125,7 +124,6 @@ def getRetweets(tweet_id, csrf_token, auth_token, authorization_bearer):
     cookie = "ct0=%s; auth_token=%s" % (csrf_token, auth_token)
     user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'x-guest-token' : guest_token , 'X-Csrf-Token' : csrf_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer, 'Cookie' : cookie  }
     r = requests.get(url_rt, verify=False, headers=user_agent)
-    print(r.text)
     message = json.loads(r.text)['data']['retweeters_timeline']['timeline']['instructions'][0]['entries']
     for i in message:
         entryId = i['entryId']
