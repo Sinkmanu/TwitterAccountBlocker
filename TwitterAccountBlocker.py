@@ -14,6 +14,14 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def getTokens():
+    # guest_id
+    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Accept' : "*/*"}
+    url_base = "https://twitter.com"
+    r = requests.get(url_base, verify=False, headers=user_agent, allow_redirects=False)
+    guest_id = r.cookies.get("guest_id")
+    print("[*] Guest_id: %s" % guest_id)
+
+    # Endpoints
     user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js' }
     url_base = "https://twitter.com/home?precache=1"
     r = requests.get(url_base, verify=False, headers=user_agent)
@@ -25,15 +33,29 @@ def getTokens():
 
     tweetActivity_endpoint = re.findall(r'"endpoints.TweetActivity":"(.*)",', r.text, re.IGNORECASE)[0].split("\"")[0]
     usersGraphQL_endpoint = re.findall(r'"endpoints.UsersGraphQL":"(.*)",', r.text, re.IGNORECASE)[0].split("\"")[0]
-    guest_token = re.findall(r'"gt=\d{19}', str(soup.find_all('script')[-1]), re.IGNORECASE)[0].replace("\"gt=","")
     print("[*] endpoints.TweetActivity: %s" % tweetActivity_endpoint)
     print("[*] Js with Bearer token: %s" % js_with_bearer)
+    
+    # Guest token
+    guest_token = re.findall(r'"gt=\d{19}', str(soup.find_all('script')[2]), re.IGNORECASE)[0].replace("\"gt=","")
     print("[*] Guest token: %s" % guest_token)
+
     # Get Bearer token
     user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js' }
     r = requests.get(js_with_bearer, verify=False, headers=user_agent)
-    bearer = "AAAAAAA" + re.findall(r'"AAAAAAA(.*)";', r.text, re.IGNORECASE)[0].split("\"")[0]
+    bearer = re.findall(r'"Bearer(.*)";', r.text, re.IGNORECASE)[0].split("\"")[0]
+    authorization_bearer = "Bearer%s" % bearer
     print("[*] Bearer: %s" % bearer)
+
+    # Guest token II
+    url_guest_token = "https://api.twitter.com/1.1/guest/activate.json"
+    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0',
+                   'Accept' : "*/*", 
+                   'Authorization' :  authorization_bearer,
+                   'Cookie' : 'guest_id=%s;' % guest_id }
+    r = requests.post(url_guest_token, verify=False, headers=user_agent, data="")
+    guest_token = json.loads(r.text)['guest_token']
+    print("[*] Guest token: %s" % guest_token)
 
     # Retweeters path is in other JS now (endpoints.TweetActivity.xxxx)
     user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Origin' : 'https://twitter.com/' ,'Referer' : 'https://twitter.com/' }
@@ -48,16 +70,22 @@ def getTokens():
     viewer_path = re.search(r'queryId:"(.+?)",operationName:"Viewer"', r.text).group(1).split('"')[-1]
 
     print("[*] rt_url: %s" % rt_path)
-    authorization_bearer = "Bearer %s" % bearer
     return authorization_bearer,guest_token,rt_path,viewer_path
 
 def login(authorization_bearer, guest_token, username, password, email):
     # SSO login
-    url_flow_1 = "https://twitter.com/i/api/1.1/onboarding/task.json?flow_name=login"
-    url_flow_2 = "https://twitter.com/i/api/1.1/onboarding/task.json"
+    url_flow_1 = "https://api.twitter.com/1.1/onboarding/task.json?flow_name=login"
+    url_flow_2 = "https://api.twitter.com/1.1/onboarding/task.json"
     # Flow 1
+    #data = {'input_flow_data' : '',
+    #        'subtask_versions' : ''}
     data = {'' : ''}
-    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer  }
+    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 
+                  'Referer' : 'https://twitter.com/', 
+                  'X-Guest-Token' : guest_token, 'Content-Type' : 'application/json', 
+                  'Authorization' :  authorization_bearer, 'X-Twitter-Active-Use' : 'yes', 
+                  'X-Twitter-Client-Language' : 'en',
+                  'Origin' : 'https://twitter.com'  }
     r = requests.post(url_flow_1, verify=False, headers=user_agent, data=json.dumps(data))
     flow_token = json.loads(r.text)['flow_token']
     cookie = ';'.join(['%s=%s' % (name, value) for (name, value) in r.cookies.get_dict(domain=".twitter.com").items()])
@@ -118,7 +146,25 @@ def getCSRFToken(guest_token, auth_token, authorization_bearer):
 def getRetweets(tweet_id, csrf_token, auth_token, authorization_bearer):
     # Get RT by id
     payload = '{"tweetId":"%s","count":20,"includePromotedContent":true,"withSuperFollowsUserFields":true,"withDownvotePerspective":false,"withReactionsMetadata":false,"withReactionsPerspective":false,"withSuperFollowsTweetFields":true,"__fs_dont_mention_me_view_api_enabled":false,"__fs_interactive_text":false,"__fs_responsive_web_uc_gql_enabled":false}' % tweet_id
-    features = '{"responsive_web_twitter_blue_verified_badge_is_enabled":true,"verified_phone_label_enabled":false,"responsive_web_graphql_timeline_navigation_enabled":true,"longform_notetweets_consumption_enabled":true,"tweetypie_unmention_optimization_enabled":true,"vibe_api_enabled":true,"responsive_web_edit_tweet_api_enabled":true,"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,"view_counts_everywhere_api_enabled":true,"standardized_nudges_misinfo":true,"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":false,"interactive_text_enabled":true,"responsive_web_text_conversations_enabled":false,"responsive_web_enhance_cards_enabled":false}'
+    features = """{"responsive_web_graphql_exclude_directive_enabled": true,
+        "verified_phone_label_enabled": false,
+        "creator_subscriptions_tweet_preview_api_enabled": true,
+        "responsive_web_graphql_timeline_navigation_enabled": true,
+        "responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
+        "tweetypie_unmention_optimization_enabled": true,
+        "responsive_web_edit_tweet_api_enabled": true,
+        "graphql_is_translatable_rweb_tweet_is_translatable_enabled": true,
+        "view_counts_everywhere_api_enabled": true,
+        "longform_notetweets_consumption_enabled": true,
+        "responsive_web_twitter_article_tweet_consumption_enabled": false,
+        "tweet_awards_web_tipping_enabled": false,
+        "freedom_of_speech_not_reach_fetch_enabled": true,
+        "standardized_nudges_misinfo": true,
+        "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
+        "longform_notetweets_rich_text_read_enabled": true,
+        "longform_notetweets_inline_media_enabled": true,
+        "responsive_web_media_download_video_enabled": false,
+        "responsive_web_enhance_cards_enabled": false}"""
     url_rt = "https://twitter.com/i/api/graphql/%s/Retweeters?variables=%s&features=%s" % (rt_path, urllib.parse.quote_plus(payload), urllib.parse.quote_plus(features))
     user_list = []
     cookie = "ct0=%s; auth_token=%s" % (csrf_token, auth_token)
