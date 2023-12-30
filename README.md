@@ -2,7 +2,7 @@
 Python script which help to block Twitter users massively.
 
 > [!IMPORTANT]
-> Twitter (now X) is a website with private code, if they make changes probably this tool will not work, in the blog post I explain how is the process to create a tool like this.  Last update (and working): 15/09/2023
+> Twitter (now X) is a website with private code, if they make changes probably this tool will not work, in the blog post I explain how is the process to create a tool like this. Last update (and working): 30/12/2023
 
 ## Usage
 

@@ -22,22 +22,21 @@ def getTokens():
     print("[*] Guest_id: %s" % guest_id)
 
     # Endpoints
-    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js' }
+    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
     url_base = "https://twitter.com/home?precache=1"
-    r = requests.get(url_base, verify=False, headers=user_agent)
+    r = requests.get(url_base, verify=False, headers=user_agent,allow_redirects=True)
     soup = BeautifulSoup(r.text, "html.parser")
     js_with_bearer = ""
     for i in soup.find_all('link'):
         if i.get("href").find("/main") != -1:
             js_with_bearer = i.get("href")
 
-    tweetActivity_endpoint = re.findall(r'"endpoints.TweetActivity":"(.*)",', r.text, re.IGNORECASE)[0].split("\"")[0]
-    usersGraphQL_endpoint = re.findall(r'"endpoints.UsersGraphQL":"(.*)",', r.text, re.IGNORECASE)[0].split("\"")[0]
+    tweetActivity_endpoint = re.findall(r'"shared~bundle.TweetEditHistory~bundle.QuoteTweetActivity~bundle.TweetActivity":"(.*)",', r.text, re.IGNORECASE)[0].split("\"")[0]
     print("[*] endpoints.TweetActivity: %s" % tweetActivity_endpoint)
     print("[*] Js with Bearer token: %s" % js_with_bearer)
     
     # Guest token
-    guest_token = re.findall(r'"gt=\d{19}', str(soup.find_all('script')[2]), re.IGNORECASE)[0].replace("\"gt=","")
+    guest_token = re.findall(r'"gt=\d{19}', str(soup.find_all('script')[1]), re.IGNORECASE)[0].replace("\"gt=","")
     print("[*] Guest token: %s" % guest_token)
 
     # Get Bearer token
@@ -59,13 +58,15 @@ def getTokens():
 
     # Retweeters path is in other JS now (endpoints.TweetActivity.xxxx)
     user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Origin' : 'https://twitter.com/' ,'Referer' : 'https://twitter.com/' }
-    url_retweet_endpoint = "https://abs.twimg.com/responsive-web/client-web-legacy/endpoints.TweetActivity.%sa.js" % tweetActivity_endpoint
+    url_retweet_endpoint = "https://abs.twimg.com/responsive-web/client-web/shared~bundle.TweetEditHistory~bundle.QuoteTweetActivity~bundle.TweetActivity.%sa.js" % tweetActivity_endpoint
+    print("[*] url_retweet_endpoint: %s" % url_retweet_endpoint)
     r = requests.get(url_retweet_endpoint, verify=False, headers=user_agent)
     rt_path = re.search(r'queryId:"(.+?)",operationName:"Retweeters"', r.text).group(1).split('"')[-1]
 
     # Viewer path is in other JS now (endpoints.UsersGraphQL.xxx)
     user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Origin' : 'https://twitter.com/' ,'Referer' : 'https://twitter.com/' }
-    url_viewer_endpoint = "https://abs.twimg.com/responsive-web/client-web-legacy/endpoints.UsersGraphQL.%sa.js" % usersGraphQL_endpoint
+    # endpoints.UsersGraphQL are now in main.js (js_with_bearer)
+    url_viewer_endpoint = js_with_bearer
     r = requests.get(url_viewer_endpoint, verify=False, headers=user_agent)
     viewer_path = re.search(r'queryId:"(.+?)",operationName:"Viewer"', r.text).group(1).split('"')[-1]
 
@@ -77,8 +78,6 @@ def login(authorization_bearer, guest_token, username, password, email):
     url_flow_1 = "https://api.twitter.com/1.1/onboarding/task.json?flow_name=login"
     url_flow_2 = "https://api.twitter.com/1.1/onboarding/task.json"
     # Flow 1
-    #data = {'input_flow_data' : '',
-    #        'subtask_versions' : ''}
     data = {'' : ''}
     user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 
                   'Referer' : 'https://twitter.com/', 
@@ -163,12 +162,14 @@ def getRetweets(tweet_id, csrf_token, auth_token, authorization_bearer):
         "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
         "longform_notetweets_rich_text_read_enabled": true,
         "longform_notetweets_inline_media_enabled": true,
+        "c9s_tweet_anatomy_moderator_badge_enabled" : false,
+        "rweb_video_timestamps_enabled": false,
         "responsive_web_media_download_video_enabled": false,
         "responsive_web_enhance_cards_enabled": false}"""
     url_rt = "https://twitter.com/i/api/graphql/%s/Retweeters?variables=%s&features=%s" % (rt_path, urllib.parse.quote_plus(payload), urllib.parse.quote_plus(features))
     user_list = []
     cookie = "ct0=%s; auth_token=%s" % (csrf_token, auth_token)
-    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'x-guest-token' : guest_token , 'X-Csrf-Token' : csrf_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer, 'Cookie' : cookie  }
+    user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'x-guest-token' : guest_token , 'X-Csrf-Token' : csrf_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer, 'Cookie' : cookie  }
     r = requests.get(url_rt, verify=False, headers=user_agent)
     message = json.loads(r.text)['data']['retweeters_timeline']['timeline']['instructions'][0]['entries']
     for i in message:
@@ -186,13 +187,17 @@ def getRetweets(tweet_id, csrf_token, auth_token, authorization_bearer):
         payload = '{"tweetId":"%s","count":20, "cursor":"%s","includePromotedContent":true,"withSuperFollowsUserFields":true,"withDownvotePerspective":false,"withReactionsMetadata":false,"withReactionsPerspective":false,"withSuperFollowsTweetFields":true,"__fs_dont_mention_me_view_api_enabled":false,"__fs_interactive_text":false,"__fs_responsive_web_uc_gql_enabled":false}' % (tweet_id, next)
         url_rt = "https://twitter.com/i/api/graphql/%s/Retweeters?variables=%s&features=%s" % (rt_path, urllib.parse.quote_plus(payload), urllib.parse.quote_plus(features))
         cookie = "ct0=%s; auth_token=%s" % (csrf_token, auth_token)
-        user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'Referer' : 'https://twitter.com/sw.js', 'x-guest-token' : guest_token , 'X-Csrf-Token' : csrf_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer, 'Cookie' : cookie  }
+        user_agent = { 'User-Agent' : 'Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0', 'x-guest-token' : guest_token , 'X-Csrf-Token' : csrf_token, 'Content-Type' : 'application/json', 'Authorization' :  authorization_bearer, 'Cookie' : cookie  }
         r = requests.get(url_rt, verify=False, headers=user_agent)
         message = json.loads(r.text)['data']['retweeters_timeline']['timeline']['instructions'][0]['entries']
         for i in message:
             entryId = i['entryId']
             if (entryId.find("user") != -1):
-                nick_user = i['content']['itemContent']['user_results']['result']['legacy']['screen_name']
+                # Is possible that a user does not have a nick? Yes, it is possible
+                if len(i['content']['itemContent']['user_results']) > 0:
+                    nick_user = i['content']['itemContent']['user_results']['result']['legacy']['screen_name']
+                else:
+                    nick_user = "None"
                 print("[*] Found: %s\t%s" % (entryId.replace("user-",""), nick_user))
                 user_list.append(entryId.replace("user-",""))
             elif (entryId.find("cursor-bottom") != -1):
